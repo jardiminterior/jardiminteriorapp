@@ -4,18 +4,55 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jardim Interior</title>
-  <script src="https://unpkg.com/react@18.2.0/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.23.10/babel.min.js"></script>
+  <!-- Dependências: local-first (offline-ready), CDN-fallback (online).
+       Para habilitar modo offline, rode uma vez com internet:
+         cd vendor && bash fetch.sh
+       O loader tenta ./vendor/* primeiro; se 404, cai no CDN automaticamente.
+       Depois que tudo carregou, chama Babel.transformScriptTags() para processar
+       o <script type="text/babel"> do body (carga dinâmica não aciona sozinha). -->
+  <script>
+    (function(){
+      var LIBS = [
+        { local: './vendor/react.development.js',     cdn: 'https://unpkg.com/react@18.2.0/umd/react.development.js' },
+        { local: './vendor/react-dom.development.js', cdn: 'https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js' },
+        { local: './vendor/babel.min.js',             cdn: 'https://unpkg.com/@babel/standalone@7.23.10/babel.min.js' }
+      ];
+      function load(i){
+        if (i >= LIBS.length){
+          if (typeof Babel !== 'undefined' && typeof Babel.transformScriptTags === 'function'){
+            Babel.transformScriptTags();
+          }
+          return;
+        }
+        var s = document.createElement('script');
+        s.src = LIBS[i].local;
+        s.onload  = function(){ load(i+1); };
+        s.onerror = function(){
+          var c = document.createElement('script');
+          c.src = LIBS[i].cdn;
+          c.onload  = function(){ load(i+1); };
+          c.onerror = function(){ load(i+1); };
+          document.head.appendChild(c);
+        };
+        document.head.appendChild(s);
+      }
+      load(0);
+    })();
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <!-- ── PWA ── -->
-  <meta name="theme-color" content="#F6F8F3" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#F5F1EB" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Jardim Interior" />
   <meta name="description" content="Cuide das suas relações como um jardim." />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* Blindagem contra viewers que não aplicam display:none em <script>
+       (alguns previews de arquivos e Safari em contextos file:// exibiam o source como texto). */
+    script, noscript { display: none !important; }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: #EAEDE6;
@@ -148,7 +185,34 @@
   </style>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">
+  <!-- Placeholder exibido até o React montar. Substituído por <App/> em runtime. -->
+  <div id="ji-boot" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#5F6A5B;font-family:'Inter',sans-serif;font-weight:300;font-size:13px;letter-spacing:.06em;text-transform:lowercase;">
+    preparando o jardim…
+  </div>
+</div>
+<!-- Fallback: se React/Babel não carregarem (offline, CDN bloqueado), mostra mensagem amigável.
+     O script sem type="text/babel" executa normalmente. Roda após um atraso para dar chance do Babel processar. -->
+<script>
+  (function(){
+    setTimeout(function(){
+      var boot = document.getElementById('ji-boot');
+      if (!boot) return; /* React montou; placeholder já foi substituído */
+      var missingReact = typeof React === 'undefined' || typeof ReactDOM === 'undefined';
+      var missingBabel = typeof Babel === 'undefined';
+      boot.innerHTML =
+        '<div style="padding:32px;text-align:center;max-width:280px;">' +
+          '<div style="font-size:32px;opacity:.35;margin-bottom:18px;">🌿</div>' +
+          '<div style="font-weight:400;color:#2A2E26;margin-bottom:8px;">o jardim precisa de conexão</div>' +
+          '<div style="font-size:12px;line-height:1.55;color:#5F6A5B;">' +
+            (missingReact || missingBabel
+              ? 'abra o arquivo com internet ao menos uma vez para baixar as bibliotecas.'
+              : 'tente recarregar a página.') +
+          '</div>' +
+        '</div>';
+    }, 6500);
+  })();
+</script>
 <script type="text/babel">
 const { useState, useEffect, useRef, useMemo, useContext, createContext } = React;
 
@@ -338,6 +402,7 @@ const STRINGS = {
     add_phone_hint: 'usado para ligar e abrir no WhatsApp',
     add_continue_no_phone: 'continuar sem telefone',
     add_enter_phone: 'digitar número',
+    start_my_garden_btn: 'começar meu jardim',
     add_bond_q: 'qual o vínculo com',
     add_plant_q: 'qual planta representa',
     add_color_q: 'cor favorita de',
@@ -432,7 +497,7 @@ const STRINGS = {
     plant_lbl: 'plant', plant_change: 'change →', plant_current: 'current plant',
     plant_which: 'which plant represents',
     plant_cancel: 'cancel', plant_confirm: 'confirm',
-    moment_with: 'a moment with',
+    moment_with: 'a memento of',
     moment_ph: 'what do you want to remember?',
     moment_save: 'save', moment_saved: '✓ saved',
     add_cancel_btn: '← cancel',
@@ -442,6 +507,7 @@ const STRINGS = {
     add_phone_hint: 'used to call and open in WhatsApp',
     add_continue_no_phone: 'continue without phone',
     add_enter_phone: 'enter number',
+    start_my_garden_btn: 'start my garden',
     add_bond_q: "what's your bond with",
     add_plant_q: 'which plant represents',
     add_color_q: "favorite color of",
@@ -471,8 +537,8 @@ const STRINGS = {
     remove_color: 'remove color',
     event_reminder_note: 'kept in your garden',
     add_evt_btn: 'event',
-    moment_recorded: '✓ moment recorded',
-    moment_with_name: (n) => `+ a moment with ${n}`,
+    moment_recorded: '✓ memento recorded',
+    moment_with_name: (n) => `+ a memento of ${n}`,
     tap_vase_short: 'tap the vase',
     /* seasonal mode — relationship on pause, plant rests without guilt */
     seasonal_lbl:  'seasonal mode',
@@ -481,7 +547,7 @@ const STRINGS = {
     /* WelcomeScreen — first visit */
     welcome_title:    'Inner Garden',
     welcome_p1:       'Each person you love is a plant.',
-    welcome_p2:       'Tending it is remembering — a message, a call, a moment kept.',
+    welcome_p2:       'Tending it is remembering — a message, a call, a memento kept.',
     welcome_p3:       'The act of remembering is already the care.',
     welcome_cta_demo: 'start with sample people',
     welcome_cta_zero: 'start from scratch',
@@ -1256,7 +1322,8 @@ function HiddenLayerScreen({ firstVisit, fragIndex, onNext, onClose }) {
    TELA — HOME
 ══════════════════════════════════════════ */
 function HomeScreen({ people, onPerson, onAdd, onQuickMoment, momentsTotal,
-                      onOpenHidden, recentlyCaredId, hiddenFragIdx, hiddenUnlocked, onToggleLang }) {
+                      onOpenHidden, recentlyCaredId, hiddenFragIdx, hiddenUnlocked, onToggleLang,
+                      isDemoMode, onExitDemo }) {
   const t    = useT();
   const lang = useContext(LangCtx);
   const hour = new Date().getHours();
@@ -1266,17 +1333,26 @@ function HomeScreen({ people, onPerson, onAdd, onQuickMoment, momentsTotal,
   });
 
   /* ── HIDRATAÇÃO: uma frase por abertura do app, cicla via localStorage ──
-     useMemo com [] garante 1 leitura/incremento por mount (= por abertura). */
-  const hydMsg = useMemo(() => {
-    const arr = HYDRATION[lang] || HYDRATION.pt;
+     BUG FIX: antes o useMemo dependia de [lang] e reincrementava o cursor
+     a cada toggle de idioma, queimando frases mais rápido do que o spec
+     ("uma por abertura"). Agora o índice é lido + incrementado uma vez por
+     mount (useEffect([])), e o render apenas traduz a frase com base nele. */
+  const [hydIdx, setHydIdx] = useState(0);
+  useEffect(() => {
     try {
       const KEY = 'ji_hyd_idx';
       const cur = parseInt(localStorage.getItem(KEY) || '0') || 0;
-      const idx = ((cur % arr.length) + arr.length) % arr.length;  /* safe modulo */
-      localStorage.setItem(KEY, String((cur + 1) % arr.length));
-      return arr[idx];
-    } catch(_) { return arr[0]; }
-  }, [lang]);
+      const len = (HYDRATION.pt || []).length || 1;
+      const idx = ((cur % len) + len) % len;  /* safe modulo */
+      setHydIdx(idx);
+      localStorage.setItem(KEY, String((cur + 1) % len));
+    } catch(_) { /* falha silenciosa: mantém idx=0 inicial */ }
+  }, []);
+  const hydMsg = useMemo(() => {
+    const arr = HYDRATION[lang] || HYDRATION.pt;
+    const len = arr.length || 1;
+    return arr[((hydIdx % len) + len) % len];
+  }, [lang, hydIdx]);
 
   /* ── long press na planta ── */
   const lpTimer  = useRef(null);
@@ -1615,6 +1691,19 @@ function HomeScreen({ people, onPerson, onAdd, onQuickMoment, momentsTotal,
           display:'flex',alignItems:'center',justifyContent:'center',
         }}>+</button>
       </div>
+
+      {/* exit demo — discreto, só aparece enquanto o usuário está no jardim demo */}
+      {isDemoMode && (
+        <div style={{padding:'14px 24px 0',display:'flex',justifyContent:'center'}}>
+          <button type="button" className="tap" onClick={onExitDemo} style={{
+            background:'none', border:'none', fontFamily:'inherit',
+            fontSize:12, fontWeight:400, color:C.sub,
+            cursor:'pointer', letterSpacing:'.02em',
+            textDecoration:'underline', textDecorationStyle:'dotted',
+            textUnderlineOffset:4, padding:'6px 4px',
+          }}>{t('start_my_garden_btn')}</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -2075,6 +2164,7 @@ function DetailScreen({ person, onBack, onMoment, onEditPlant, onEditColor, onSa
           <p style={{fontSize:10,color:C.sub,fontWeight:500,marginBottom:6,
             textTransform:'uppercase',letterSpacing:'.04em'}}>{t('name_lbl')}</p>
           <input value={eName} onChange={e=>setEName(e.target.value)}
+            maxLength={60}
             style={{width:'100%',background:C.white,border:`1.5px solid ${C.green3}`,
               borderRadius:12,padding:'12px 14px',fontSize:16,fontWeight:300,
               color:C.text,fontFamily:'inherit',outline:'none',caretColor:C.green2}}/>
@@ -2108,6 +2198,7 @@ function DetailScreen({ person, onBack, onMoment, onEditPlant, onEditColor, onSa
             <input value={ePhone} onChange={e=>setEPhone(e.target.value)}
               placeholder="(11) 9 0000-0000"
               type="tel" inputMode="tel" autoComplete="tel"
+              maxLength={24}
               style={{width:'100%',background:C.white,
                 border:`1.5px solid ${ePhone?C.green3:'#DDE4D8'}`,
                 borderRadius:12,padding:'12px 36px 12px 14px',
@@ -2306,7 +2397,8 @@ function MomentScreen({ person, onBack, onSave }) {
 
       <div style={{flex:1,display:'flex',flexDirection:'column',paddingTop:28}}>
         <textarea ref={ref} value={text} onChange={e=>setText(e.target.value)}
-          placeholder={t('moment_ph')} style={{
+          placeholder={t('moment_ph')} maxLength={1000}
+          style={{
             flex:1, background:'transparent', border:'none', outline:'none',
             resize:'none', fontSize:16, color:C.text, lineHeight:1.75,
             fontFamily:'inherit', fontWeight:300, caretColor:C.green2,
@@ -2341,12 +2433,21 @@ const COLOR_SWATCHES = [
   {key:'purple', hex:'#8B6AAA'}, {key:'earth',  hex:'#9A7050'},
 ];
 
+/* DDI suportados na V1 — emoji flags, sem biblioteca externa */
+const DDI_OPTIONS = [
+  { flag: '🇧🇷', code: '+55',  label: 'BR' },
+  { flag: '🇵🇹', code: '+351', label: 'PT' },
+  { flag: '🇨🇭', code: '+41',  label: 'CH' },
+  { flag: '🇬🇧', code: '+44',  label: 'UK' },
+];
+
 function AddScreen({ onBack, onAdd }) {
   const t    = useT();
   const lang = useContext(LangCtx);
   const [step,      setStep]      = useState(0);
   const [name,      setName]      = useState('');
   const [phone,     setPhone]     = useState('');
+  const [ddi,       setDdi]       = useState('+55');
   const [bond,      setBond]      = useState('');
   const [plant,     setPlant]     = useState(null);
   const [favColor,  setFavColor]  = useState('');   /* ── cor favorita escolhida pelo vaso ── */
@@ -2370,7 +2471,9 @@ function AddScreen({ onBack, onAdd }) {
   const totalSteps = 6;    /* nome, telefone, vínculo, planta, cor, aniversário */
 
   function finish() {
-    onAdd({ name, bond, plant, favColor, birthday: skipBday?'':birthday, phone });
+    /* concatena DDI + número quando o usuário digitou algo — preserva string vazia se não */
+    const fullPhone = phone.trim() ? `${ddi} ${phone.trim()}` : '';
+    onAdd({ name, bond, plant, favColor, birthday: skipBday?'':birthday, phone: fullPhone });
   }
 
   function ProgressDots() {
@@ -2401,7 +2504,8 @@ function AddScreen({ onBack, onAdd }) {
         <div className="fade-in" style={{flex:1,display:'flex',flexDirection:'column'}}>
           <p style={{fontSize:12,color:C.sub,marginBottom:7}}>{t('add_who')}</p>
           <input ref={nameRef} value={name} onChange={e=>setName(e.target.value)}
-            placeholder={t('add_name_ph')} onKeyDown={e=>e.key==='Enter'&&name.trim()&&setStep(1)}
+            placeholder={t('add_name_ph')} maxLength={60}
+            onKeyDown={e=>e.key==='Enter'&&name.trim()&&setStep(1)}
             style={{width:'100%',background:'transparent',border:'none',
               borderBottom:`1.5px solid ${C.green3}`,outline:'none',
               fontSize:28,fontWeight:300,color:C.text,fontFamily:'inherit',
@@ -2421,7 +2525,31 @@ function AddScreen({ onBack, onAdd }) {
       {step===1 && (
         <div className="fade-in" style={{flex:1,display:'flex',flexDirection:'column'}}>
           <p style={{fontSize:12,color:C.sub,marginBottom:4}}>{t('add_phone_for')}</p>
-          <h2 style={{fontSize:24,fontWeight:300,color:C.text,marginBottom:32}}>{name}</h2>
+          <h2 style={{fontSize:24,fontWeight:300,color:C.text,marginBottom:24}}>{name}</h2>
+
+          {/* seletor de DDI — 4 países, inline, sem biblioteca */}
+          <div role="radiogroup" aria-label="código do país"
+            style={{display:'flex',gap:6,marginBottom:18,flexWrap:'wrap'}}>
+            {DDI_OPTIONS.map(opt => {
+              const active = ddi === opt.code;
+              return (
+                <button key={opt.code} type="button" role="radio" aria-checked={active}
+                  className="tap" onClick={()=>setDdi(opt.code)} style={{
+                    display:'inline-flex',alignItems:'center',gap:6,
+                    padding:'7px 11px', borderRadius:10,
+                    background: active ? C.green5 : 'transparent',
+                    border: `1px solid ${active ? C.green2 : C.green4}`,
+                    color: active ? C.text : C.sub,
+                    fontSize:13, fontWeight: active ? 500 : 400,
+                    fontFamily:'inherit', cursor:'pointer',
+                    transition:'all .18s', minHeight:34,
+                  }}>
+                  <span style={{fontSize:15,lineHeight:1}}>{opt.flag}</span>
+                  <span style={{letterSpacing:'.02em'}}>{opt.code}</span>
+                </button>
+              );
+            })}
+          </div>
 
           {/* campo grande estilo discador */}
           <div style={{position:'relative',marginBottom:12}}>
@@ -2433,6 +2561,7 @@ function AddScreen({ onBack, onAdd }) {
               type="tel"
               inputMode="tel"
               autoComplete="tel"
+              maxLength={24}
               style={{
                 width:'100%', background:'transparent', border:'none',
                 borderBottom:`2px solid ${phone ? C.green2 : C.green3}`,
@@ -2679,7 +2808,11 @@ function migratePerson(p) {
 function parsePeople(raw) {
   const parsed = JSON.parse(raw);
   if (!Array.isArray(parsed)) return PEOPLE_DEFAULT;
-  const migrated = parsed.map(migratePerson);
+  /* ── SEGURANÇA: filtra entradas não-objeto antes de migrar.
+     Um localStorage adulterado (ex.: [null, 'x', {...}]) quebraria
+     migratePerson em p.events/p.moments. Filtrar protege o boot. */
+  const safe = parsed.filter(p => p && typeof p === 'object' && !Array.isArray(p));
+  const migrated = safe.map(migratePerson);
   try { localStorage.setItem(JI_SCHEMA_KEY, String(JI_SCHEMA_VERSION)); } catch(_) {}
   return migrated;
 }
@@ -2801,6 +2934,11 @@ function App() {
   const [onboarded, setOnboarded] = useLocalStorage(
     'ji_onboarded', false, raw => raw === 'true', String
   );
+  /* demoMode: true quando o usuário entrou via "começar com pessoas demo".
+     Limpa quando ele adiciona a primeira pessoa real ou usa o botão "começar meu jardim". */
+  const [demoMode, setDemoMode] = useLocalStorage(
+    'ji_demo_mode', false, raw => raw === 'true', String
+  );
 
   /* momentsTotal: derivado — soma de todos os momentos de todas as pessoas */
   const momentsTotal = useMemo(
@@ -2827,8 +2965,18 @@ function App() {
   function goAdd()     { setScreen('add'); }
 
   /* ── ONBOARDING: handlers do WelcomeScreen ── */
-  function handleWelcomeDemo()    { setOnboarded(true); /* permanece no home com PEOPLE_DEFAULT */ }
-  function handleWelcomeScratch() { setPeople([]); setOnboarded(true); setScreen('add'); }
+  function handleWelcomeDemo()    { setOnboarded(true); setDemoMode(true);  /* permanece no home com PEOPLE_DEFAULT */ }
+  function handleWelcomeScratch() { setPeople([]); setOnboarded(true); setDemoMode(false); setScreen('add'); }
+
+  /* ── EXIT DEMO: limpa pessoas demo, mantém onboarded, recarrega para garden vazio ── */
+  function handleExitDemo() {
+    try {
+      localStorage.setItem('ji_people', '[]');
+      localStorage.setItem('ji_onboarded', 'true');
+      localStorage.setItem('ji_demo_mode', 'false');
+    } catch(_) { /* falha silenciosa — modo privado/quota */ }
+    window.location.reload();
+  }
 
   function openHidden() {
     setHiddenOpen(true);
@@ -2848,6 +2996,8 @@ function App() {
   }
 
   function handleAdd(p) {
+    /* primeira pessoa custom transita o usuário pra fora do modo demo */
+    if (demoMode) setDemoMode(false);
     const noteDefault = (STRINGS[lang] || STRINGS.pt).new_bond_note;
     setPeople(prev=>[...prev,{
       id: Date.now(), name:p.name, bond:p.bond, plant:p.plant,
@@ -2936,6 +3086,8 @@ function App() {
                               hiddenFragIdx={hiddenFragIdx}
                               hiddenUnlocked={momentsTotal>=3}
                               onToggleLang={()=>setLang(l=>l==='pt'?'en':'pt')}
+                              isDemoMode={demoMode}
+                              onExitDemo={handleExitDemo}
                             />}
       {onboarded && screen==='detail' && <DetailScreen
                               person={sel}
