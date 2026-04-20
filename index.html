@@ -12,31 +12,57 @@
        o <script type="text/babel"> do body (carga dinâmica não aciona sozinha). -->
   <script>
     (function(){
+      /* Loader de dependências com 3 camadas de fallback:
+         1. ./vendor/ (offline-ready, preferido)
+         2. unpkg.com (CDN primário)
+         3. cdn.jsdelivr.net (CDN secundário — usado se unpkg estiver bloqueado por firewall corporativo)
+         Cada lib tenta a lista em ordem; primeiro que carregar vence. */
       var LIBS = [
-        { local: './vendor/react.development.js',     cdn: 'https://unpkg.com/react@18.2.0/umd/react.development.js' },
-        { local: './vendor/react-dom.development.js', cdn: 'https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js' },
-        { local: './vendor/babel.min.js',             cdn: 'https://unpkg.com/@babel/standalone@7.23.10/babel.min.js' }
+        {
+          name: 'react',
+          urls: [
+            './vendor/react.development.js',
+            'https://unpkg.com/react@18.2.0/umd/react.development.js',
+            'https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.min.js'
+          ]
+        },
+        {
+          name: 'react-dom',
+          urls: [
+            './vendor/react-dom.development.js',
+            'https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js',
+            'https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.min.js'
+          ]
+        },
+        {
+          name: 'babel',
+          urls: [
+            './vendor/babel.min.js',
+            'https://unpkg.com/@babel/standalone@7.23.10/babel.min.js',
+            'https://cdn.jsdelivr.net/npm/@babel/standalone@7.23.10/babel.min.js'
+          ]
+        }
       ];
-      function load(i){
+      function tryUrls(lib, idx, done){
+        if (idx >= lib.urls.length){ done(false); return; }
+        var s = document.createElement('script');
+        s.src = lib.urls[idx];
+        s.onload  = function(){ done(true); };
+        s.onerror = function(){ tryUrls(lib, idx+1, done); };
+        document.head.appendChild(s);
+      }
+      function loadNext(i){
         if (i >= LIBS.length){
           if (typeof Babel !== 'undefined' && typeof Babel.transformScriptTags === 'function'){
             Babel.transformScriptTags();
           }
           return;
         }
-        var s = document.createElement('script');
-        s.src = LIBS[i].local;
-        s.onload  = function(){ load(i+1); };
-        s.onerror = function(){
-          var c = document.createElement('script');
-          c.src = LIBS[i].cdn;
-          c.onload  = function(){ load(i+1); };
-          c.onerror = function(){ load(i+1); };
-          document.head.appendChild(c);
-        };
-        document.head.appendChild(s);
+        tryUrls(LIBS[i], 0, function(ok){ loadNext(i+1); });
       }
-      load(0);
+      loadNext(0);
     })();
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
@@ -44,6 +70,8 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#F5F1EB" />
   <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Jardim Interior" />
@@ -201,14 +229,15 @@
       var missingReact = typeof React === 'undefined' || typeof ReactDOM === 'undefined';
       var missingBabel = typeof Babel === 'undefined';
       boot.innerHTML =
-        '<div style="padding:32px;text-align:center;max-width:280px;">' +
-          '<div style="font-size:32px;opacity:.35;margin-bottom:18px;">🌿</div>' +
-          '<div style="font-weight:400;color:#2A2E26;margin-bottom:8px;">o jardim precisa de conexão</div>' +
-          '<div style="font-size:12px;line-height:1.55;color:#5F6A5B;">' +
+        '<div style="padding:28px;text-align:center;max-width:300px;">' +
+          '<div style="font-size:32px;opacity:.35;margin-bottom:16px;">🌿</div>' +
+          '<div style="font-weight:400;color:#2A2E26;margin-bottom:10px;font-size:14px;">o jardim precisa de conexão</div>' +
+          '<div style="font-size:12px;line-height:1.6;color:#5F6A5B;">' +
             (missingReact || missingBabel
-              ? 'abra o arquivo com internet ao menos uma vez para baixar as bibliotecas.'
+              ? 'para abrir offline: rode <b>vendor/fetch.bat</b> (Windows) ou <b>vendor/fetch.sh</b> (Mac/Linux) <b>uma vez</b> com internet — depois funciona sem rede.'
               : 'tente recarregar a página.') +
           '</div>' +
+          '<button onclick="location.reload()" style="margin-top:18px;padding:8px 18px;border:1px solid #A6B489;background:#F6F8F3;color:#4A6A4A;border-radius:999px;font-family:inherit;font-size:12px;cursor:pointer;">recarregar</button>' +
         '</div>';
     }, 6500);
   })();
@@ -413,6 +442,10 @@ const STRINGS = {
     add_add_bday: '+ adicionar aniversário',
     add_finish: (n) => `adicionar ${n}`,
     new_bond_note: 'novo vínculo 🌱',
+    interests_lbl:    'interesses em comum',
+    interests_ph:     'música, corridas, cinema, café…',
+    interests_hint:   'o que vocês gostam de fazer juntos',
+    interests_empty:  'toque em ··· para adicionar',
     hidden_found: 'você encontrou.',
     hidden_today: 'há algo para você hoje',
     hidden_listen: 'ouvindo...',
@@ -518,6 +551,10 @@ const STRINGS = {
     add_add_bday: '+ add birthday',
     add_finish: (n) => `add ${n}`,
     new_bond_note: 'new bond 🌱',
+    interests_lbl:    'common interests',
+    interests_ph:     'music, running, films, coffee…',
+    interests_hint:   'what you two enjoy doing together',
+    interests_empty:  'tap ··· to add',
     hidden_found: 'you found it.',
     hidden_today: 'there is something for you today',
     hidden_listen: 'listening...',
@@ -628,11 +665,40 @@ function safeHex(c) {
   return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : '';
 }
 
-/* ── SANITIZAÇÃO DE E164 ── retorna null se não houver dígitos suficientes
-   para discar; protege tel:/wa.me contra URLs vazias (`tel:+55`). */
+/* ── SANITIZAÇÃO DE PLANT ──
+   p.plant é usado em dois locais sensíveis:
+   1. PlantSVG recebe `type` via branch (switch-like) — tipo desconhecido renderiza nada.
+   2. `${p.plant.color}88` é interpolado em CSS (radial-gradient background) e em
+      atributos SVG. Se o objeto vier malformado do localStorage, crashea em
+      person.plant.type ou permite CSS injection.
+   Defesa: whitelist de type, safeHex em color, clamp de level. Retorna sempre
+   um objeto válido — inclusive se `p.plant` for undefined/null/string. */
+const PLANT_TYPES_VALID = ['fern','monstera','bonsai','succulent','orchid','lavender','cactus','olive'];
+const PLANT_FALLBACK    = { type:'fern', color:'#4A7A58', level:2 };
+function safePlant(pl) {
+  if (!pl || typeof pl !== 'object' || Array.isArray(pl)) return { ...PLANT_FALLBACK };
+  const type  = PLANT_TYPES_VALID.indexOf(pl.type) >= 0 ? pl.type : PLANT_FALLBACK.type;
+  const color = safeHex(pl.color) || PLANT_FALLBACK.color;
+  const levelRaw = parseInt(pl.level);
+  const level = isNaN(levelRaw) ? PLANT_FALLBACK.level : Math.max(1, Math.min(5, levelRaw));
+  return { type, color, level };
+}
+
+/* ── SANITIZAÇÃO DE E164 ──
+   Retorna null se não houver dígitos suficientes para discar (protege
+   tel:/wa.me contra URLs vazias tipo `tel:+`).
+   Se o número foi digitado com DDI embutido ("+55 11...", "+351 91...",
+   "+41 79...", "+44 7..."), o '+' marca presença de country code e
+   retornamos só os dígitos — bypass do fallback BR.
+   Fallback legado: números sem '+' e sem prefixo 55 ganham '55' (BR),
+   comportamento original dos cadastros pré-DDI. */
 function safeE164(raw) {
-  const digits = (raw || '').replace(/\D/g, '');
+  const s = (raw == null) ? '' : String(raw);
+  const digits = s.replace(/\D/g, '');
   if (digits.length < 8) return null; /* não é telefone plausível */
+  /* DDI explícito no input (formato novo do AddScreen): preservar dígitos tais quais */
+  if (s.trim().charAt(0) === '+') return digits;
+  /* Legado pré-DDI (BR sem country code): garantir prefixo 55 */
   return digits.startsWith('55') ? digits : `55${digits}`;
 }
 
@@ -1733,19 +1799,29 @@ function DetailScreen({ person, onBack, onMoment, onEditPlant, onEditColor, onSa
   const [evTime,       setEvTime]       = useState('');
   const evTitleRef = useRef(null);
 
-  /* estados locais do modo edição */
-  const [eName,     setEName]     = useState(person.name);
-  const [eBond,     setEBond]     = useState(person.bond);
-  const [ePhone,    setEPhone]    = useState(person.phone||'');
-  const [eBday,     setEBday]     = useState(person.birthday||'');
-  const [eSkipBday, setESkipBday] = useState(!person.birthday);
-  const [eSeasonal, setESeasonal] = useState(!!person.seasonalMode);
+  /* estados locais do modo edição — ePhone guarda APENAS o número local
+     (sem DDI); ePhoneDDI guarda o código do país separadamente.
+     Na carga, splitDdi parseia o telefone salvo; no save, concatenamos
+     de volta para manter o contrato "+55 11...", "+351 91..." etc. */
+  const _initPhone = splitDdi(person.phone||'');
+  const [eName,      setEName]      = useState(person.name);
+  const [eBond,      setEBond]      = useState(person.bond);
+  const [ePhone,     setEPhone]     = useState(_initPhone.local);
+  const [ePhoneDDI,  setEPhoneDDI]  = useState(_initPhone.ddi);
+  const [eBday,      setEBday]      = useState(person.birthday||'');
+  const [eSkipBday,  setESkipBday]  = useState(!person.birthday);
+  const [eSeasonal,  setESeasonal]  = useState(!!person.seasonalMode);
+  const [eInterests, setEInterests] = useState(person.commonInterests||'');
 
   /* sincroniza locais quando person muda externamente */
-  useEffect(()=>{ setEName(person.name); setEBond(person.bond);
-    setEPhone(person.phone||''); setEBday(person.birthday||'');
+  useEffect(()=>{
+    const sp = splitDdi(person.phone||'');
+    setEName(person.name); setEBond(person.bond);
+    setEPhone(sp.local); setEPhoneDDI(sp.ddi);
+    setEBday(person.birthday||'');
     setESkipBday(!person.birthday);
-    setESeasonal(!!person.seasonalMode); }, [person.id]);
+    setESeasonal(!!person.seasonalMode);
+    setEInterests(person.commonInterests||''); }, [person.id]);
 
   /* timers com cleanup — previne state update após unmount */
   const evFocusTimer = useRef(null);
@@ -1769,12 +1845,17 @@ function DetailScreen({ person, onBack, onMoment, onEditPlant, onEditColor, onSa
   }
 
   function saveEdits() {
+    /* Reconstrói o telefone completo: DDI + local.
+       String vazia se o usuário não digitou número — o safeE164 devolve null
+       nesse caso e desativa os botões de ligar/WhatsApp (ver linha ~1862). */
+    const fullPhone = ePhone.trim() ? `${ePhoneDDI} ${ePhone.trim()}` : '';
     onSaveEdits(person.id, {
-      name:         eName.trim() || person.name,
-      bond:         eBond,
-      phone:        ePhone.trim(),
-      birthday:     eSkipBday ? '' : eBday,
-      seasonalMode: eSeasonal,
+      name:            eName.trim() || person.name,
+      bond:            eBond,
+      phone:           fullPhone,
+      birthday:        eSkipBday ? '' : eBday,
+      seasonalMode:    eSeasonal,
+      commonInterests: eInterests.trim(),
     });
     setEditMode(false);
   }
@@ -1960,6 +2041,38 @@ function DetailScreen({ person, onBack, onMoment, onEditPlant, onEditColor, onSa
           </p>
         </div>
 
+        {/* interesses em comum — sempre visível (com empty state discreto).
+           Toque no card abre o modo de edição focado nesse campo, resolvendo
+           a discoverability: antes só aparecia se já preenchido, então o
+           usuário não descobria que o campo existia. */}
+        {(() => {
+          const hasInterests = person.commonInterests && person.commonInterests.trim();
+          return (
+            <button type="button" className="tap" onClick={()=>setEditMode(true)}
+              style={{
+                display:'block', width:'100%', textAlign:'left',
+                background: hasInterests ? C.card : 'transparent',
+                borderRadius:14, padding:'14px 18px', marginBottom:12,
+                boxShadow: hasInterests ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
+                border: hasInterests ? 'none' : `1px dashed ${C.green4}`,
+                cursor:'pointer', fontFamily:'inherit',
+                transition:'all .2s ease',
+              }}>
+              <p style={{fontSize:10,color:C.sub,fontWeight:500,marginBottom:6,
+                textTransform:'uppercase',letterSpacing:'.04em'}}>{t('interests_lbl')}</p>
+              <p style={{
+                fontSize: hasInterests ? 13 : 12,
+                color: hasInterests ? C.text : C.sub,
+                lineHeight:1.65,
+                fontWeight:300,
+                fontStyle: hasInterests ? 'normal' : 'italic',
+              }}>
+                {hasInterests ? person.commonInterests : t('interests_empty')}
+              </p>
+            </button>
+          );
+        })()}
+
         {/* eventos */}
         <div style={{marginBottom:12}}>
           {(person.events||[]).map(ev=>{
@@ -2124,12 +2237,15 @@ function DetailScreen({ person, onBack, onMoment, onEditPlant, onEditColor, onSa
       }}>
         <button type="button" className="tap" onClick={()=>{
           /* reseta estados locais para não vazar edições canceladas */
+          const sp = splitDdi(person.phone||'');
           setEName(person.name);
           setEBond(person.bond);
-          setEPhone(person.phone||'');
+          setEPhone(sp.local);
+          setEPhoneDDI(sp.ddi);
           setEBday(person.birthday||'');
           setESkipBday(!person.birthday);
           setESeasonal(!!person.seasonalMode);
+          setEInterests(person.commonInterests||'');
           setEditMode(false);
         }} style={{
           position:'absolute',top:42,left:10,background:'none',border:'none',
@@ -2188,15 +2304,38 @@ function DetailScreen({ person, onBack, onMoment, onEditPlant, onEditColor, onSa
           </div>
         </div>
 
-        {/* telefone */}
+        {/* telefone — mesma estrutura do AddScreen: DDI + local separados */}
         <div style={{marginBottom:16}}>
           <p style={{fontSize:10,color:C.sub,fontWeight:500,marginBottom:6,
             textTransform:'uppercase',letterSpacing:'.04em'}}>
             {t('phone_lbl')} <span style={{fontWeight:400,textTransform:'none'}}>{t('phone_opt')}</span>
           </p>
+          {/* seletor de DDI — estilo igual ao AddScreen para consistência visual */}
+          <div role="radiogroup" aria-label="código do país"
+            style={{display:'flex',gap:6,marginBottom:8,flexWrap:'wrap'}}>
+            {DDI_OPTIONS.map(opt => {
+              const active = ePhoneDDI === opt.code;
+              return (
+                <button key={opt.code} type="button" role="radio" aria-checked={active}
+                  className="tap" onClick={()=>setEPhoneDDI(opt.code)} style={{
+                    display:'inline-flex',alignItems:'center',gap:6,
+                    padding:'6px 10px', borderRadius:10,
+                    background: active ? C.green5 : 'transparent',
+                    border: `1px solid ${active ? C.green2 : C.green4}`,
+                    color: active ? C.text : C.sub,
+                    fontSize:12, fontWeight: active ? 500 : 400,
+                    fontFamily:'inherit', cursor:'pointer',
+                    transition:'all .18s',
+                  }}>
+                  <span style={{fontSize:14,lineHeight:1}}>{opt.flag}</span>
+                  <span style={{letterSpacing:'.02em'}}>{opt.code}</span>
+                </button>
+              );
+            })}
+          </div>
           <div style={{position:'relative'}}>
             <input value={ePhone} onChange={e=>setEPhone(e.target.value)}
-              placeholder="(11) 9 0000-0000"
+              placeholder={ePhoneDDI==='+55' ? '(11) 9 0000-0000' : '000 000 000'}
               type="tel" inputMode="tel" autoComplete="tel"
               maxLength={24}
               style={{width:'100%',background:C.white,
@@ -2264,6 +2403,29 @@ function DetailScreen({ person, onBack, onMoment, onEditPlant, onEditColor, onSa
             </span>
             <span style={{fontSize:11,color:C.sub}}>{t('plant_change')}</span>
           </button>
+        </div>
+
+        {/* interesses em comum — string livre, visão relacional */}
+        <div style={{marginBottom:16}}>
+          <p style={{fontSize:10,color:C.sub,fontWeight:500,marginBottom:8,
+            textTransform:'uppercase',letterSpacing:'.04em'}}>{t('interests_lbl')}</p>
+          <textarea
+            value={eInterests}
+            onChange={e=>setEInterests(e.target.value)}
+            placeholder={t('interests_ph')}
+            rows={2}
+            maxLength={240}
+            style={{
+              width:'100%',background:C.white,
+              border:`1.5px solid ${eInterests?C.green3:'#DDE4D8'}`,borderRadius:12,
+              padding:'10px 12px',fontSize:14,fontWeight:300,color:C.text,
+              fontFamily:'inherit',outline:'none',resize:'none',lineHeight:1.5,
+              transition:'border-color .18s',
+            }}
+          />
+          <p style={{fontSize:11,color:C.sub,marginTop:6,fontStyle:'italic',lineHeight:1.4}}>
+            {t('interests_hint')}
+          </p>
         </div>
 
         {/* modo sazonal — relação em pausa, sem culpa */}
@@ -2440,6 +2602,25 @@ const DDI_OPTIONS = [
   { flag: '🇨🇭', code: '+41',  label: 'CH' },
   { flag: '🇬🇧', code: '+44',  label: 'UK' },
 ];
+
+/* splitDdi('+351 91 234 5678') → { ddi:'+351', local:'91 234 5678' }
+   Para telefone legado sem DDI explícito, retorna { ddi:'+55', local:phone }.
+   Match por prefixo mais longo primeiro para não colidir (+1 vs +44, +55 vs +351). */
+function splitDdi(phone) {
+  const s = String(phone == null ? '' : phone).trim();
+  if (!s) return { ddi:'+55', local:'' };
+  if (s.charAt(0) === '+') {
+    const sorted = [...DDI_OPTIONS].sort((a,b)=>b.code.length-a.code.length);
+    for (const opt of sorted) {
+      if (s.startsWith(opt.code)) {
+        return { ddi: opt.code, local: s.slice(opt.code.length).trim() };
+      }
+    }
+    /* "+" mas DDI desconhecido: preserva tudo no local para não corromper */
+    return { ddi:'+55', local: s };
+  }
+  return { ddi:'+55', local: s };
+}
 
 function AddScreen({ onBack, onAdd }) {
   const t    = useT();
@@ -2779,19 +2960,21 @@ function AddScreen({ onBack, onAdd }) {
 /* ══════════════════════════════════════════
    SCHEMA / MIGRAÇÃO de localStorage
    ──────────────────────────────────────────
-   Versão atual = 2.
+   Versão atual = 3.
    v1 → v2: garante favColor, events, moments, seasonalMode em todo person.
+   v2 → v3: adiciona commonInterests (string livre — "música, corridas...").
    Sempre que adicionar campo novo a person, bump da versão e nova migração.
 ══════════════════════════════════════════ */
-const JI_SCHEMA_VERSION = 2;
+const JI_SCHEMA_VERSION = 3;
 const JI_SCHEMA_KEY     = 'ji_schema_version';
 
 function migratePerson(p) {
   return {
-    favColor:     '',
-    events:       [],
-    moments:      [],
-    seasonalMode: false,
+    favColor:        '',
+    events:          [],
+    moments:         [],
+    seasonalMode:    false,
+    commonInterests: '',
     ...p,
     /* garante que arrays não fiquem null mesmo se o objeto antigo trouxer null explicitamente */
     events:  Array.isArray(p.events)  ? p.events  : [],
@@ -2799,6 +2982,12 @@ function migratePerson(p) {
     /* ── SEGURANÇA: favColor é interpolado em CSS, precisa ser hex válido
        mesmo se o localStorage foi adulterado ou veio de versão antiga ── */
     favColor: safeHex(p.favColor),
+    /* commonInterests: string livre; coerce para string se veio number/null/array */
+    commonInterests: typeof p.commonInterests === 'string' ? p.commonInterests : '',
+    /* ── SEGURANÇA: plant também é interpolado em CSS (radial-gradient da bloom)
+       e consumido por PlantSVG. Sanitiza type (whitelist), color (hex) e level
+       (clamp 1-5). Garante objeto completo mesmo se p.plant for undefined. ── */
+    plant:    safePlant(p.plant),
   };
 }
 
@@ -3004,6 +3193,7 @@ function App() {
       birthday:p.birthday, phone:p.phone,
       favColor: safeHex(p.favColor),         /* ── SEGURANÇA: só aceita hex válido ── */
       events:[], moments:[],
+      commonInterests: '',                   /* ── v3: preenchido no DetailScreen edit mode ── */
       lastContactedAt: new Date().toISOString(),
       note: noteDefault,
     }]);
@@ -3035,10 +3225,19 @@ function App() {
   }
 
   function handleEditPlant(personId, newPlant) {
+    /* ── SEGURANÇA: sanitiza o novo plant antes de persistir (defense-in-depth).
+       newPlant vem de PLANT_OPTS (hardcoded, confiável), mas safePlant garante
+       invariantes mesmo se o contrato mudar no futuro. ── */
+    const np = safePlant(newPlant);
     setPeople(prev => prev.map(p =>
-      p.id === personId ? { ...p, plant: { type: newPlant.type, color: newPlant.color, level: p.plant.level } } : p
+      p.id === personId
+        ? { ...p, plant: { type: np.type, color: np.color, level: p.plant?.level ?? np.level } }
+        : p
     ));
-    setSel(prev => prev ? { ...prev, plant: { type: newPlant.type, color: newPlant.color, level: prev.plant.level } } : prev);
+    setSel(prev => prev
+      ? { ...prev, plant: { type: np.type, color: np.color, level: prev.plant?.level ?? np.level } }
+      : prev
+    );
   }
 
   function handleEditColor(personId, hex) {
@@ -3070,7 +3269,7 @@ function App() {
     <div style={{width:'100%',height:'100%',position:'relative',overflow:'hidden'}}>
       {/* Onboarding tem prioridade sobre todas as telas no primeiro acesso */}
       {!onboarded && (
-        <WelcomeScreen
+                <WelcomeScreen
           onDemo={handleWelcomeDemo}
           onScratch={handleWelcomeScratch}
         />
@@ -3130,6 +3329,7 @@ function App() {
   );
 }
 
+/* V1 closure — 2026-04-20 */
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
